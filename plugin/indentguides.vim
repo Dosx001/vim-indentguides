@@ -30,53 +30,36 @@ function! s:SetIndentGuideHighlights(user_initiated)
 endfunction
 
 function! s:ToggleIndentGuides(user_initiated)
+  if a:user_initiated
+    silent! syntax clear IndentGuideSpaces
+    silent! syntax clear IndentGuideDraw
+    return
+  endif
   let b:toggle_indentguides = get(b:, 'toggle_indentguides', 1)
   let g:indentguides_guidewidth = &l:shiftwidth
+  call s:SetIndentGuideHighlights(a:user_initiated)
 
-  if !a:user_initiated
-    if index(g:indentguides_ignorelist, &filetype) != -1 || !b:toggle_indentguides
-      " skip if not user initiated, and is either disabled, an ignored filetype, or already toggled on
-      return
-    endif
+  " TODO-TK: local and global listchars are the same, and s: variables are failing (??)
+  let g:original_listchars = get(g:, 'original_listchars', &g:listchars)
+
+  " TODO: figure out why checking each addition individually breaks things for tab (unicode?)
+  let listchar_guides = ',tab:' . g:indentguides_tabchar . ' ,trail:•'
+  if &g:listchars !~ listchar_guides
+    let &g:listchars = &g:listchars . listchar_guides
   endif
-
-  if b:toggle_indentguides
-    call s:SetIndentGuideHighlights(a:user_initiated)
-
-    " TODO-TK: local and global listchars are the same, and s: variables are failing (??)
-    let g:original_listchars = get(g:, 'original_listchars', &g:listchars)
-
-    " TODO: figure out why checking each addition individually breaks things for tab (unicode?)
-    let listchar_guides = ',tab:' . g:indentguides_tabchar . ' ,trail:•'
-    if &g:listchars !~ listchar_guides
-      let &g:listchars = &g:listchars . listchar_guides
-    endif
-    if &conceallevel == 0 || &conceallevel == 3
-      setlocal conceallevel=2
-    endif
-    if &concealcursor ==# '' && !exists('g:indentguides_concealcursor_unaltered')
-      setlocal concealcursor=inc
-    endif
-    if g:indentguides_toggleListMode
-      setlocal list
-    endif
-    let b:toggle_indentguides = 0
-  else
-    syntax clear IndentGuideSpaces
-    syntax clear IndentGuideDraw
-
-    let &l:conceallevel = &g:conceallevel
-    let &l:concealcursor = &g:concealcursor
-    let &g:listchars = g:original_listchars
-    if g:indentguides_toggleListMode
-      setlocal nolist
-    endif
-    let b:toggle_indentguides = 1
+  if &conceallevel == 0 || &conceallevel == 3
+    setlocal conceallevel=2
+  endif
+  if &concealcursor ==# '' && !exists('g:indentguides_concealcursor_unaltered')
+    setlocal concealcursor=inc
+  endif
+  if g:indentguides_toggleListMode
+    setlocal list
   endif
 endfunction
 
 augroup IndentGuides
-  au! BufRead,ColorScheme * call s:SetIndentGuideHighlights(0)
+  au! BufNewFile,ColorScheme * call s:SetIndentGuideHighlights(0)
   au! BufWinEnter * call s:ToggleIndentGuides(0)
 augroup END
 
